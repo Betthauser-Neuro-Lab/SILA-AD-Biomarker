@@ -1,6 +1,6 @@
-function [tout,tdrs] = ILLA2(age,value,subid,dt,val0,maxi,skern)
+function [tout,tdrs] = ILLA(age,value,subid,dt,val0,maxi,skern)
 %
-% tout = ILLA2(age,value,subid,dt,val0,maxi)
+% tout = ILLA(age,value,subid,dt,val0,maxi)
 % 
 % Written By: Tobey J Betthauser, PhD
 %             Univsersity of Wisconsin-Madison
@@ -66,10 +66,6 @@ tdrs.ci = 1.96*tdrs.ratestd./sqrt(tdrs.tot); % estimate 95% CI in rate
 idkeep = tdrs.tot>=2;
 tdrs = tdrs(idkeep,:); % restrict data to observations with more than one observation
 
-% srate = smooth(vals,rate,0.2,'rloess');
-% plot(vals,rate,'.'),hold on
-% plot(vals,srate)
-
 % Use robust LOESS to smooth data, unles smoothing kernel is set to null
 if skern~=0
     srate = smooth(vals,rate,skern,'rloess');
@@ -81,7 +77,6 @@ end
 tdrs.skern(:) = skern;
 % Determine if curve is increasing or decreasing with time
 med_rate = median(tdrs.rate);
-% med_rate = 1;
 
 %% Perform iterative model
 % set inital conditions
@@ -116,12 +111,6 @@ while and(qval_cur<max(tdrs.val),nif<maxi)
     sdf = cat(1,sdf,tdrs.ratestd(id)); % store rate SD for current iteration
     nf = cat(1,nf,tdrs.tot(id)); % store number observations in current iteration
     qval_cur = tdrs.rate(id)*dt + qval_cur; % estimate next querry value using Euler's Method
-    
-    % estimate value using midpoint version of Euler's method
-    % estimate slope at dt/2
-%     mid_val = tdrs.rate(id)*dt/2 + qval_cur; % get estimate value at midpoint
-%     [~,idmid] = min(abs(tdrs.val - mid_val)); % lookup slope for midpoint
-%     qval_cur = tdrs.rate(idmid)*dt + qval_cur; % estimate next query using midpoint method    
 end
 tf = cumsum(dt*ones(nif,1))-dt;
 
@@ -151,22 +140,13 @@ while and(qval_cur>min(qval),nib<maxi)
     nb = cat(1,nb,tdrs.tot(id));
     qval_cur = tdrs.rate(id)*-dt + qval_cur;
     nib = nib+1;
-    % estimate value using midpoint version of Euler's method
-    % estimate slope at dt/2
-%     mid_val = tdrs.rate(id)*-dt/2 + qval_cur; % get estimate value at midpoint
-%     [~,idmid] = min(abs(tdrs.val - mid_val)); % lookup slope for midpoint
-%     qval_cur = tdrs.rate(idmid)*-dt + qval_cur; % estimate next query using midpoint method    
 end
 tb = -cumsum(dt*ones(nib,1))+dt;
 
 %% Create output table
 tout = table();
 tout.val = [flip(valb(2:end));valf];
-% try
-    tout.time = [flip(tb(2:end));tf];
-% catch
-%     keyboard
-% end
+tout.time = [flip(tb(2:end));tf];
 [~,id0] = min(abs(tout.val-val0));
 tout.adtime = tout.time-tout.time(id0);
 tout.mrate = [flip(rb(2:end));rf];

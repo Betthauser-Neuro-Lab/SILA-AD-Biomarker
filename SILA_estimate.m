@@ -1,9 +1,49 @@
-function [tout,texmod] = SILA_estimate(tilla,age,val,subid,varargin)
-
-% tout is table of estimates for each subject
-% texmod is table with the discrete extrapolated modeled curve
-
-% Remove after testing
+function [tout,texmod] = SILA_estimate(tsila,age,val,subid,varargin)
+% SILA_ESTIMATE(t
+%   [tsila,tdrs] = SILA(age,value,subid,dt,val0,maxi) applies the SILA algorithm
+%   to input data age, value, subid to approximate a value vs. time curve.
+%   dt is the integration interval for Euler's Method used in the
+%   approximation of the integrated curve. val0 specifies the initial
+%   condition such that f(t=0) = val0. maxi is the maximum number of
+%   iterations allowed before the model terminates integration.
+%
+%   [tsila,tdrs] = SILA(age,value,subid,dt,val0,maxi,sk) is the same as above but
+%   allows the user to specifiy the size of the smoothing kernel used to
+%   smooth the rate vs. value curve. If this value is unspecified, the
+%   algorithm will perform an initial step to select a smoothing kernel 
+%   that optimizes backwards prediction residuals based on the first and
+%   last observations for each person
+% 
+%   Input Variables:
+%       tsila = table output from SILA.m
+%       age = number vector corresponding to the age at observation
+%       val = number vector with the observed value to be modeled over time
+%       subid = number corresponding to a subject identifier
+%       varargin = optional input argument to specify name-value pairs for
+%       align_event, extrap_years, and truncate_aget0. 
+%
+%   Output Variables:
+%       tsila = table with discrete value vs. time curve and additional
+%       stats info
+%       tdrs = table with the discrete values used as input to the
+%       intergation of value vs. time with addtiional stats info
+%
+%   Optional Input Argument name-value pairs
+%       'align_event', 'first', 'last', or 'all' specifies which
+%       observation(s) within a subject are used as the reference to align
+%       subject data to the modeled curve. Default is 'last'
+%       'extrap_years', numeric specifies the number of years to use to
+%       generate a linear model used to extrapolate beyond the modeled
+%       curve. Default value is three years.
+%       'truncate_aget0', 'yes' or 'no' specifies whether the model should
+%       truncate estimated time from threshold that are lower than the
+%       lowest time on the modeled curve. Default is 'yes'
+%
+% Written By: Tobey J Betthauser, PhD
+%             Univsersity of Wisconsin-Madison
+%             Department of Medicine
+%             Division of Geriatrics
+%             tjbetthauser@medicine.wisc.edu
 
 %% Parse the inputs
 p = inputParser();
@@ -15,8 +55,8 @@ addParameter(p,'align_event','last',@(x) contains(x,{'first','last','all'}))
 addParameter(p,'extrap_years',3,@(x) isnumeric(x))
 addParameter(p,'truncate_aget0','yes',@(x) contains(x,{'y','n'}))
 
-parse(p,tilla,val,age,subid,varargin{:})
-tilla = p.Results.tilla;
+parse(p,tsila,val,age,subid,varargin{:})
+tsila = p.Results.tilla;
 age = p.Results.age;
 val = p.Results.val;
 subid = p.Results.subid;
@@ -25,21 +65,21 @@ extyrs = p.Results.extrap_years;
 alit0 = p.Results.truncate_aget0;
 
 %% Create extrapolated model
-md1 = fitlm(tilla.adtime(tilla.adtime>max(tilla.adtime)-extyrs),tilla.val(tilla.adtime>max(tilla.adtime)-extyrs));
-md2 = fitlm(tilla.adtime(tilla.adtime<min(tilla.adtime)+extyrs),tilla.val(tilla.adtime<min(tilla.adtime)+extyrs));
-mll = min(tilla.val);mul = max(tilla.val);
+md1 = fitlm(tsila.adtime(tsila.adtime>max(tsila.adtime)-extyrs),tsila.val(tsila.adtime>max(tsila.adtime)-extyrs));
+md2 = fitlm(tsila.adtime(tsila.adtime<min(tsila.adtime)+extyrs),tsila.val(tsila.adtime<min(tsila.adtime)+extyrs));
+mll = min(tsila.val);mul = max(tsila.val);
 slopeu = md1.Coefficients.Estimate(2);
 intu = md1.Coefficients.Estimate(1);
 slopel = md2.Coefficients.Estimate(2);
 intl = md2.Coefficients.Estimate(1);
 
 % resample nonparametric curve to finer grid using 0.01 year spacing
-tt = min(tilla.adtime):0.01:max(tilla.adtime);
-mval = interp1(tilla.adtime,tilla.val,tt);
+tt = min(tsila.adtime):0.01:max(tsila.adtime);
+mval = interp1(tsila.adtime,tsila.val,tt);
 
 % create discretely sampled curve for extrapolated values
 % extrapolate to twice the uppoer and lower modeled values
-if strcmp(aevent,'all') && tilla.val(end)>tilla.val(1)
+if strcmp(aevent,'all') && tsila.val(end)>tsila.val(1)
     % for increasing with time
     ttl = min(tt*3):0.01:min(tt);ttl = ttl(1:end-1);
     vall = (ttl-min(tt))*slopel  + min(mval);
@@ -49,7 +89,7 @@ if strcmp(aevent,'all') && tilla.val(end)>tilla.val(1)
 
     tt = single([ttl(1:end-1),tt,ttu(2:end)]);
     mval = single([vall(1:end-1),mval,valu(2:end)]);
-elseif strcmp(aevent,'all') && tilla.val(end)<tilla.val(1)
+elseif strcmp(aevent,'all') && tsila.val(end)<tsila.val(1)
     % for decreasing with time
     ttl = min(tt*3):0.01:min(tt);ttl = ttl(1:end-1);
     vall = (ttl-min(tt))*slopeu  + max(mval);
@@ -165,8 +205,8 @@ switch contains(alit0,'y')
         for i = 1:height(tout)
             tsub = tout(tout.subid==tout.subid(i),:);
             dtt0_maxage = tsub.estdtt0(tsub.age==tsub.maxage);
-            if dtt0_maxage<min(tilla.adtime)
-                dtshift = min(tilla.adtime) - dtt0_maxage;
+            if dtt0_maxage<min(tsila.adtime)
+                dtshift = min(tsila.adtime) - dtt0_maxage;
                 tout.estaget0(i) = tout.estaget0(i) - dtshift;
                 tout.estdtt0(i) = tout.estdtt0(i) + dtshift;
                 tout.truncated(i) = 1;

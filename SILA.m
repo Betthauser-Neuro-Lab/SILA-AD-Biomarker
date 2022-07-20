@@ -1,13 +1,13 @@
 function [tsila,tdrs] = SILA(age,value,subid,dt,val0,maxi,varargin)
-% SILLA2 sampled iterative local approximation with smoothing
-%   [tsila,tdrs] = SILLA2(age,value,subid,dt,val0,maxi) applies the SILA algorithm
+% SILA sampled iterative local approximation with smoothing
+%   [tsila,tdrs] = SILA(age,value,subid,dt,val0,maxi) applies the SILA algorithm
 %   to input data age, value, subid to approximate a value vs. time curve.
 %   dt is the integration interval for Euler's Method used in the
 %   approximation of the integrated curve. val0 specifies the initial
 %   condition such that f(t=0) = val0. maxi is the maximum number of
 %   iterations allowed before the model terminates integration.
 %
-%   [tsila,tdrs] = SILLA2(age,value,subid,dt,val0,maxi,sk) is the same as above but
+%   [tsila,tdrs] = SILA(age,value,subid,dt,val0,maxi,sk) is the same as above but
 %   allows the user to specifiy the size of the smoothing kernel used to
 %   smooth the rate vs. value curve. If this value is unspecified, the
 %   algorithm will perform an initial step to select a smoothing kernel 
@@ -36,6 +36,7 @@ function [tsila,tdrs] = SILA(age,value,subid,dt,val0,maxi,varargin)
 %             Univsersity of Wisconsin-Madison
 %             Department of Medicine
 %             Division of Geriatrics
+%             tjbetthauser@medicine.wisc.edu
 %
 % This function was initiallty designed to estimate the amyloid vs time curve from
 % longitudinal PET imaging data. This function calls a subfunction to
@@ -108,12 +109,6 @@ switch nargin
         tsila = dat.tilla{ids}; % output the model table with the best fit
         tdrs = dat.tdrs{ids}; % output the discrete rate table from the best fit
 end
-
-% Lines below were used to plot residuals and investigate weighting
-% parameters
-% subplot(3,1,1),plot(sk,SSQpos + resnorm*SSQneg,'.')
-% subplot(3,1,2),plot(sk,SSQpos,'.r')
-% subplot(3,1,3),plot(sk,resnorm*SSQneg,'.k')
 
 %% Add a variable to specify the optimal smoothing kernel size to the descrete rate table
 tdrs.skern(:) = sk(ids);
